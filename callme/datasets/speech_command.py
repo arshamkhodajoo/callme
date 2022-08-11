@@ -74,6 +74,16 @@ class GoogleSpeechCommandDataset(SPEECHCOMMANDS):
 
         self.transforms = transforms
 
+    def get_label(self, fileid):
+        """get indexed label from sample path"""
+        relpath = os.path.relpath(fileid, self._path)
+        label, _ = os.path.split(relpath)
+        return label_to_index(label)
+
+    @property
+    def labels(self):
+        return [self.get_label(fileid) for fileid in self._walker]
+
     def load_list(self, filename):
         """Read file and return list of sample filenames"""
         filepath = os.path.join(self._path, filename)
