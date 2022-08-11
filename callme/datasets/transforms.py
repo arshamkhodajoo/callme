@@ -49,11 +49,19 @@ class ApplyBackgroundNoise:
     def __init__(self, bg_dataset) -> None:
         self.bg_dataset = bg_dataset
 
-    def __call__(self, audio):
+    def find_good_noise(self):
+        """This is temporary solution to empty wav file bug, some noise files are too short to be applied"""
         noise = random.choice(self.bg_dataset)
+        if noise.size(1) < 16_000:
+            return self.find_good_noise()
+        
+        return noise
+
+    def __call__(self, audio):
+        noise = self.find_good_noise()
         rate = 16_000
 
-        assert noise.size(1) < rate, "bacgkroud audio too short to apply noise"
+        assert noise.size(1) < rate, "background audio too short to apply noise"
 
         if noise.size(1) > audio.size(1):
             equal_size_chunks = int(noise.size(1) / audio.size(1))
