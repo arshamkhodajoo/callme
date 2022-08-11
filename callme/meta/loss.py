@@ -1,11 +1,25 @@
-from turtle import forward
 import torch
 import torch.nn.functional as F
 from torch import nn
 
 __all__ = ["PrototypicalCosineLoss"]
 
-cosine_distance = nn.CosineSimilarity(dim=1)
+def euclidean_dist(x, y):
+    '''
+    Compute euclidean distance between two tensors
+    '''
+    # x: N x D
+    # y: M x D
+    n = x.size(0)
+    m = y.size(0)
+    d = x.size(1)
+    if d != y.size(1):
+        raise Exception
+
+    x = x.unsqueeze(1).expand(n, m, d)
+    y = y.unsqueeze(0).expand(n, m, d)
+
+    return torch.pow(x - y, 2).sum(2)
 
 
 def prototypical_loss(input, target, n_support):
@@ -23,28 +37,28 @@ def prototypical_loss(input, target, n_support):
     - n_support: number of samples to keep in account when computing
       barycentres, for each one of the current classes
     '''
+    target_cpu = target.to('cpu')
+    input_cpu = input.to('cpu')
 
     def supp_idxs(c):
         # FIXME when torch will support where as np
-        return target.eq(c).nonzero()[:n_support].squeeze(1)
+        return target_cpu.eq(c).nonzero()[:n_support].squeeze(1)
 
     # FIXME when torch.unique will be available on cuda too
-    classes = torch.unique(target)
+    classes = torch.unique(target_cpu)
     n_classes = len(classes)
     # FIXME when torch will support where as np
     # assuming n_query, n_target constants
-    n_query = target.eq(classes[0].item()).sum().item() - n_support
+    n_query = target_cpu.eq(classes[0].item()).sum().item() - n_support
 
     support_idxs = list(map(supp_idxs, classes))
 
-    prototypes = torch.stack([input[idx_list].mean(0)
-                             for idx_list in support_idxs])
+    prototypes = torch.stack([input_cpu[idx_list].mean(0) for idx_list in support_idxs])
     # FIXME when torch will support where as np
-    query_idxs = torch.stack(
-        list(map(lambda c: target.eq(c).nonzero()[n_support:], classes))).view(-1)
+    query_idxs = torch.stack(list(map(lambda c: target_cpu.eq(c).nonzero()[n_support:], classes))).view(-1)
 
     query_samples = input.to('cpu')[query_idxs]
-    dists = cosine_distance(query_samples, prototypes)
+    dists = euclidean_dist(query_samples, prototypes)
 
     log_p_y = F.log_softmax(-dists, dim=1).view(n_classes, n_query, -1)
 
@@ -59,5 +73,6 @@ def prototypical_loss(input, target, n_support):
     return loss_val,  acc_val
 
 class PrototypicalCosineLoss(nn.Module):
-    def forward(self, inputs, targets):
-        return prototypical_loss(input=inputs, target=targets)
+
+    def forward(self, inputs, targets, n_support):
+        return prototypical_loss(input=inputs, target=targets, n_support=n_support)
