@@ -53,6 +53,8 @@ class ApplyBackgroundNoise:
         noise = random.choice(self.bg_dataset)
         rate = 16_000
 
+        assert noise.size(1) < rate, "bacgkroud audio too short to apply noise"
+
         if noise.size(1) > audio.size(1):
             equal_size_chunks = int(noise.size(1) / audio.size(1))
             random_chunk_select = random.randint(0, equal_size_chunks)
