@@ -61,7 +61,7 @@ class ApplyBackgroundNoise:
         noise = self.find_good_noise()
         rate = 16_000
 
-        assert noise.size(1) < rate, "background audio too short to apply noise"
+        assert noise.size(1) > rate, "background audio too short to apply noise"
 
         if noise.size(1) > audio.size(1):
             equal_size_chunks = int(noise.size(1) / audio.size(1))
