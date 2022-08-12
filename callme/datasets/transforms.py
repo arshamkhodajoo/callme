@@ -46,30 +46,20 @@ class ApplyTimeshift:
 class ApplyBackgroundNoise:
     """apply and concat background noise to 16k wav audio"""
 
-    def __init__(self, bg_dataset) -> None:
+    def __init__(self, bg_dataset, sound_rate: int=16000, volume: float=0.80) -> None:
         self.bg_dataset = bg_dataset
-
-    def find_good_noise(self):
-        """This is temporary solution to empty wav file bug, some noise files are too short to be applied"""
-        noise = random.choice(self.bg_dataset)
-        if noise.size(1) < 16_000:
-            return self.find_good_noise()
-        
-        return noise
+        self.rate = sound_rate
+        assert volume < 1, "volume too big"
+        self.volume = volume
 
     def __call__(self, audio):
-        noise = self.find_good_noise()
-        rate = 16_000
-
-        assert noise.size(1) > rate, "background audio too short to apply noise"
-
-        if noise.size(1) > audio.size(1):
-            equal_size_chunks = int(noise.size(1) / audio.size(1))
-            random_chunk_select = random.randint(0, equal_size_chunks)
-            # 0-16000 -> n=1 -> n-1 * 16000 : n * 16000
-            slice_start = random_chunk_select - 1
-            noise = noise[0][slice_start * rate: random_chunk_select * rate]
-            noise = noise.view((1, *noise.size()))
-
-        percentage = random.uniform(0, 0.1)
-        return audio * (1 - percentage) + noise * percentage
+        background_sample = random.choice(self.bg_dataset)
+        assert background_sample.size(1) > self.rate, "background sample too short"
+        background_offset = random.randint(0, len(background_sample) - self.rate)
+        background_clip = background_sample[background_offset:(background_offset+self.rate)]
+        background_clip = background_clip.view((1, self.rate))
+        background_volume = random.uniform(0, self.volume)
+        background_noise = background_clip * background_volume
+        audio_with_noise = background_noise + audio
+        noise_clamped = torch.clamp(audio_with_noise, -1.0, 1.0)
+        return noise_clamped

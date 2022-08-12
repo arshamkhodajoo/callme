@@ -4,17 +4,14 @@ from torch import nn
 
 __all__ = ["PrototypicalCosineLoss"]
 
+
 def euclidean_dist(x, y):
-    '''
-    Compute euclidean distance between two tensors
-    '''
     # x: N x D
     # y: M x D
     n = x.size(0)
     m = y.size(0)
     d = x.size(1)
-    if d != y.size(1):
-        raise Exception
+    assert d == y.size(1)
 
     x = x.unsqueeze(1).expand(n, m, d)
     y = y.unsqueeze(0).expand(n, m, d)
@@ -53,9 +50,11 @@ def prototypical_loss(input, target, n_support):
 
     support_idxs = list(map(supp_idxs, classes))
 
-    prototypes = torch.stack([input_cpu[idx_list].mean(0) for idx_list in support_idxs])
+    prototypes = torch.stack([input_cpu[idx_list].mean(0)
+                             for idx_list in support_idxs])
     # FIXME when torch will support where as np
-    query_idxs = torch.stack(list(map(lambda c: target_cpu.eq(c).nonzero()[n_support:], classes))).view(-1)
+    query_idxs = torch.stack(
+        list(map(lambda c: target_cpu.eq(c).nonzero()[n_support:], classes))).view(-1)
 
     query_samples = input.to('cpu')[query_idxs]
     dists = euclidean_dist(query_samples, prototypes)
@@ -71,6 +70,7 @@ def prototypical_loss(input, target, n_support):
     acc_val = y_hat.eq(target_inds.squeeze(2)).float().mean()
 
     return loss_val,  acc_val
+
 
 class PrototypicalCosineLoss(nn.Module):
 
