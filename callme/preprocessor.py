@@ -25,5 +25,6 @@ class MFCCPreprocessor(MFCC):
         mfcc_features = super().forward(waveform=waveform)[0]
         # f x t -> t x f
         mfcc_features = mfcc_features.T
-        #return torch.unsqueeze(mfcc_features, 0)
-        return mfcc_features
+        t, f = mfcc_features.size()
+        mfcc_features = mfcc_features.view((t, 1, f))
+        return torch.unsqueeze(mfcc_features, 0)
