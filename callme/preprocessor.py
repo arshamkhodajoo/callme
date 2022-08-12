@@ -27,4 +27,5 @@ class MFCCPreprocessor(MFCC):
         mfcc_features = mfcc_features.T
         t, f = mfcc_features.size()
         mfcc_features = mfcc_features.view((t, 1, f))
-        return torch.unsqueeze(mfcc_features, 0)
+        #return torch.unsqueeze(mfcc_features, 0)
+        return mfcc_features
