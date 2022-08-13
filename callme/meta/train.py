@@ -1,3 +1,4 @@
+from turtle import forward
 from typing import Callable, Union
 
 import pytorch_lightning as pl
@@ -10,7 +11,7 @@ __all__ = ["ProtonetLightningTrainer"]
 class ProtonetLightningTrainer(pl.LightningModule):
     """Lightning Module for Prototypical Neural Train"""
 
-    def __init__(self, model: Callable, loss_fn: Callable, optimizer: Optimizer, lr_scheduler: Union[_LRScheduler, None], n_support: int) -> None:
+    def __init__(self, model: Callable, loss_fn: Callable, optimizer: Optimizer, n_support: int, lr_scheduler: Union[_LRScheduler, None]=None) -> None:
         super().__init__()
 
         self.model = model
@@ -19,6 +20,9 @@ class ProtonetLightningTrainer(pl.LightningModule):
         self.lr_scheduler = lr_scheduler
 
         self.n_support = n_support
+
+    def forward(self, x):
+        return self.model(x)
 
     def configure_optimizers(self):
         if self.lr_scheduler is None:
