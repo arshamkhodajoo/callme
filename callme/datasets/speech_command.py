@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from typing import Callable, Optional, Tuple, Union
 
+import numpy as np
 import torch
 import torchaudio
 from torch import Tensor
@@ -46,11 +47,6 @@ CLASSES = ['backward',
            'zero']
 
 
-def label_to_index(word):
-    # Return the position of the word in labels
-    return torch.tensor(CLASSES.index(word))
-
-
 def file_is_background_audio(line):
     return "silence" in line or "unknown" in line
 
@@ -74,11 +70,22 @@ class GoogleSpeechCommandDataset(SPEECHCOMMANDS):
 
         self.transforms = transforms
 
+    @staticmethod
+    def labels_to_indices(word):
+        # Return the position of the word in labels
+        return torch.tensor(CLASSES.index(word))
+
+    @staticmethod
+    def indices_to_labels(index):
+        # Return the word corresponding to the index in labels
+        # This is the inverse of labels_to_indices
+        return CLASSES[index]
+
     def get_label(self, fileid):
         """get indexed label from sample path"""
         relpath = os.path.relpath(fileid, self._path)
         label, _ = os.path.split(relpath)
-        return label_to_index(label)
+        return self.labels_to_indices(label)
 
     @property
     def labels(self):
@@ -96,7 +103,36 @@ class GoogleSpeechCommandDataset(SPEECHCOMMANDS):
         waveform, sample_rate, label, speaker_id, utterance_number = super().__getitem__(n)
         if self.transforms is not None:
             waveform = self.transforms(waveform)
-        return waveform, label_to_index(label)
+        return waveform, self.labels_to_indices(label)
+
+
+class TripletSpeechCommandDataset(GoogleSpeechCommandDataset):
+    """
+    Triplet loss wrapper for GoogleSpeechCommand dataset
+    returns (anchor, positive, negative)
+    """
+
+    def __init__(self, root: Union[str, Path], download: bool = False, subset: Optional[str] = None, transforms: Union[Callable, None] = None):
+        super().__init__(root, download, subset, transforms)
+        self.t_labels = torch.stack(self.labels)
+        self.labels_set = set(self.t_labels.numpy())
+        self.label_to_indices = {label: np.where(self.t_labels.numpy() == label)[0]
+                                 for label in self.labels_set}
+
+    def __getitem__(self, index: int) -> Tuple[Tensor, Tensor, Tensor]:
+        waveform, label = super().__getitem__(index)
+        positive_index = index
+        while positive_index == index:
+            positive_index = np.random.choice(
+                self.label_to_indices[int(label)])
+
+        negative_label = np.random.choice(list(self.labels_set - set([label])))
+        negative_index = np.random.choice(
+            self.label_to_indices[int(negative_label)])
+        positive_sample, _ = super().__getitem__(positive_index)
+        negative_sample, _ = super().__getitem__(negative_index)
+
+        return [(waveform, positive_sample, negative_sample), label]
 
 
 class GoogleSpeechBackgroundDataset(GoogleSpeechCommandDataset):

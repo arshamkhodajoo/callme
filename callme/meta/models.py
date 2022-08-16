@@ -3,12 +3,14 @@ refernce:  https://arxiv.org/abs/1904.03814 and https://arxiv.org/abs/2007.14463
 """
 
 from collections import OrderedDict
+from typing import Callable, List
 
 import torch
+from torch import Tensor
 import torch.nn as nn
 from callme.meta.utils import Flatten, get_padding
 
-__all__ = ["TCResNet8", "TCResNet"]
+__all__ = ["TCResNet8", "TCResNet", "TripletNetword"]
 
 
 class TC(nn.Module):
@@ -120,3 +122,19 @@ def TCResNet8(in_c, in_h, in_w, width_multiplier=1.0):
     n_channels = [int(x * width_multiplier) for x in n_channels]
 
     return TCResNet(in_w, in_h, in_c, n_blocks, n_channels, conv_kernel, res_kernel, dilation)
+
+
+class TripletNetwork(nn.Module):
+    """Triplet wrapper for embedding model"""
+    def __init__(self, embedding_model: Callable) -> None:
+        super().__init__()
+        self.embedding_model = embedding_model
+        self.l2 = lambda output: output / output.pow(2).sum(1, keepdim=True).sqrt()
+        self.model = lambda x: self.l2(self.embedding_model(x))
+
+    def forward(self, anchor: Tensor, positive: Tensor, negative: Tensor):
+        return (
+            self.model(anchor),
+            self.model(positive),
+            self.model(negative)
+        )
