@@ -24,5 +24,5 @@ class MFCCPreprocessor(MFCC):
         # single channel only
         mfcc_features = super().forward(waveform=waveform)[0]
         # f x t -> t x f
-        mfcc_features = mfcc_features.T
+        #mfcc_features = mfcc_features.T
         return torch.unsqueeze(mfcc_features, 0)
