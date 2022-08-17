@@ -2,6 +2,7 @@
 refernce:  https://arxiv.org/abs/1904.03814 and https://arxiv.org/abs/2007.14463
 """
 
+from turtle import forward
 from typing import Callable
 
 import torch
@@ -47,8 +48,38 @@ class Res8(nn.Module):
                 x = getattr(self, f'bn{i}')(x)
         x = x.view(x.size(0), x.size(1), -1)  # shape: (batch, feats, o3)
         x = torch.mean(x, 2)
-        return x.unsqueeze(-2)
+        return x
 
+
+class L2Regularizer(nn.Module):
+    """Performs L2 regularization over samples. 
+        i.e. makes the sum of squares of embeddings equal to 1    
+    """
+
+    def __init__(self):
+        super().__init__()
+
+    def regularize(self, embeds):
+        l2_embeds = F.normalize(embeds, p=2, dim=-1)
+        # l2_embeds.requires_grad = True      <==== uncomment this if you run into var has no gradient problem
+
+        return l2_embeds
+
+    def forward(self, embeds):
+        l2_signal = self.regularize(embeds)
+        return l2_signal
+
+class TripletTCRensnet8(nn.Module):
+    """TC resnet 8 with l2 regularization"""
+    def __init__(self, embedding_dim: int=128) -> None:
+        super().__init__()
+        self.model = Res8(hidden_size=embedding_dim)
+        self.l2 = L2Regularizer()
+
+    def forward(self, x):
+        out = self.model(x)
+        out = self.l2(out)
+        return out
 
 class TripletNetwork(nn.Module):
     """Triplet wrapper for embedding model"""
