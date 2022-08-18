@@ -61,7 +61,7 @@ class L2Regularizer(nn.Module):
 
     def regularize(self, embeds):
         l2_embeds = F.normalize(embeds, p=2, dim=-1)
-        l2_embeds.requires_grad = True      <==== uncomment this if you run into var has no gradient problem
+        # l2_embeds.requires_grad = True      <==== uncomment this if you run into var has no gradient problem
 
         return l2_embeds
 
