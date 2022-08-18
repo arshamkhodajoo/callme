@@ -78,8 +78,21 @@ class TripletNetworkdTrainer(pl.LightningModule):
         self.log("validation_loss", loss_value)
 
 
-class OnlineTripletNetworkTrainer(TripletNetworkdTrainer):
+class OnlineTripletNetworkTrainer(pl.LightningModule):
     """Lightning module for Triplet Network which works on online triplet loss"""
+
+    def __init__(self, embedding_model: Callable, loss_fn: Callable, optimizer, scheduler) -> None:
+        super().__init__()
+        self.model = embedding_model
+        self.loss_fn = loss_fn
+        self.optimizer = optimizer
+        self.scheduler = scheduler
+
+    def configure_optimizers(self):
+        return [self.optimizer], [self.scheduler]
+
+    def forward(self, x):
+        return self.model(x)
 
     def training_step(self, batch, batch_idx):
         mfccs, labels = batch
